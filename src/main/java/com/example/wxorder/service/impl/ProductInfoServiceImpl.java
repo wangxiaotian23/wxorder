@@ -1,13 +1,17 @@
 package com.example.wxorder.service.impl;
 
 import com.example.wxorder.dao.ProductInfoDao;
+import com.example.wxorder.dto.CartDto;
 import com.example.wxorder.entity.ProductInfo;
 import com.example.wxorder.enums.ProductStatusEnum;
+import com.example.wxorder.enums.ResultEnum;
+import com.example.wxorder.exception.SellException;
 import com.example.wxorder.service.ProductInfoService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -39,5 +43,36 @@ public class ProductInfoServiceImpl implements ProductInfoService {
     @Override
     public ProductInfo save(ProductInfo productInfo) {
         return productInfoDao.save(productInfo);
+    }
+    @Transactional
+    @Override
+    public void increaseStock(List<CartDto> cartDTOList) {
+        for(CartDto cartDTO:cartDTOList){
+            ProductInfo productInfo = productInfoDao.findById(cartDTO.getProductId()).get();
+            if(productInfo==null){//商品不存在
+                throw new SellException(ResultEnum.PRODUCT_NOT_EXIST);
+            }
+            //增加库存
+            Integer result = productInfo.getProductStock() + cartDTO.getProductQuantity();
+            productInfo.setProductStock(result);
+            productInfoDao.save(productInfo);
+        }
+    }
+    @Transactional
+    @Override
+    public void decreaseStock(List<CartDto> cartDTOList) {
+        for(CartDto cartDTO:cartDTOList){
+            ProductInfo productInfo=productInfoDao.findById(cartDTO.getProductId()).get();//数据库实际商品
+            if(productInfo==null){//商品不存在
+                throw new SellException(ResultEnum.PRODUCT_NOT_EXIST);
+            }
+
+            Integer result = productInfo.getProductStock()-cartDTO.getProductQuantity();
+            if(result<0){
+                throw new SellException(ResultEnum.PRODUCT_STOCK_ERROR);
+            }
+            productInfo.setProductStock(result);
+            productInfoDao.save(productInfo);
+        }
     }
 }

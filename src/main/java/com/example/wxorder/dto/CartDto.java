@@ -3,6 +3,7 @@ package com.example.wxorder.dto;
 import lombok.Data;
 
 /**
+ * 购物车
  * @Auther: 李清依
  * @Date: 2019/11/15 10:15
  * @Description:
