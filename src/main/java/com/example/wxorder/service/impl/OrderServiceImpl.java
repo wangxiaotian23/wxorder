@@ -1,5 +1,6 @@
 package com.example.wxorder.service.impl;
 
+import com.example.wxorder.converter.OrderMaster2OrderDTOConverter;
 import com.example.wxorder.dao.OrderDetailDao;
 import com.example.wxorder.dao.OrderMasterDao;
 import com.example.wxorder.dto.CartDto;
@@ -18,6 +19,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -113,7 +115,9 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     public Page<OrderDTO> findList(String buyerOpenId, Pageable pageable) {
-        return null;
+        Page<OrderMaster> orderMasterPage=orderMasterDao.findByBuyerOpenid(buyerOpenId,pageable);
+        List<OrderDTO> orderDTOList= OrderMaster2OrderDTOConverter.convert(orderMasterPage.getContent());
+        return new PageImpl<>(orderDTOList,pageable,orderMasterPage.getTotalElements());
     }
 
     @Override
@@ -123,7 +127,39 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     public OrderDTO cancel(OrderDTO orderDTO) {
-        return null;
+        OrderMaster orderMaster=new OrderMaster();
+        //BeanUtils.copyProperties(orderDTO,orderMaster);
+        //判断订单状态
+        if (orderDTO.getPayStatus().equals(OrderStatusEnum.NEW.getCode())){
+            log.error("[取消订单] 订单状态不正确，orderId={},orderStatus={}",orderDTO.getOrderId(),orderDTO.getOrderStatus());
+            throw new SellException(ResultEnum.ORDER_STATUS_ERROR);
+        }
+        //修改订单状态
+        orderDTO.setOrderStatus(OrderStatusEnum.CANCEL.getCode());
+        BeanUtils.copyProperties(orderDTO,orderMaster);
+        OrderMaster updateResult=orderMasterDao.save(orderMaster);
+        if(updateResult == null){
+            log.error("[取消订单] 更新失败，orderMaster={}",orderMaster);
+            throw new SellException(ResultEnum.ORDER_UPDATE_FAIL);
+        }
+        //返回库存
+        //先判断有没有商品
+        if (CollectionUtils.isEmpty(orderDTO.getOrderDetailList())){
+            log.error("[取消订单] 订单中无商品，orderDTO={}",orderDTO);
+            throw new SellException(ResultEnum.ORDER_DETAIL_EMPTY);
+        }
+        //lambda表达式
+        List<CartDto> cartDtoList=orderDTO.getOrderDetailList().stream()
+                .map(e->new CartDto(e.getProductId(),e.getProductQuantity()))
+                .collect(Collectors.toList());
+        productInfoService.increaseStock(cartDtoList);
+
+        //如果已支付，需退款
+        if(orderDTO.getPayStatus().equals(PayStatusEnum.SUCCESS.getCode())){
+            //进行退款
+            payService.refund(orderDTO);
+        }
+        return orderDTO;
     }
 
     @Override
