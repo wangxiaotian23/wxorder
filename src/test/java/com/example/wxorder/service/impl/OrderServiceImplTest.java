@@ -2,6 +2,7 @@ package com.example.wxorder.service.impl;
 
 import com.example.wxorder.dto.OrderDTO;
 import com.example.wxorder.entity.OrderDetail;
+import com.example.wxorder.enums.OrderStatusEnum;
 import com.example.wxorder.service.OrderService;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.Assert;
@@ -75,6 +76,9 @@ public class OrderServiceImplTest {
 
     @Test
     public void cancel() {
+        OrderDTO orderDTO = orderService.findOne(ORDER_ID);
+        OrderDTO result = orderService.cancel(orderDTO);
+        Assert.assertEquals(OrderStatusEnum.CANCEL.getCode(),result.getOrderStatus());
     }
 
     @Test

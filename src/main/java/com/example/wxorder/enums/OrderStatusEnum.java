@@ -14,7 +14,7 @@ public enum  OrderStatusEnum{
     FINISH(1, "已完成"),
     CANCEL(2, "已取消"),;
 
-    private int code;
+    private Integer code;
     private String msg;
     OrderStatusEnum(Integer code, String msg) {
         this.code = code;
